@@ -58,8 +58,8 @@ class DengueCSVProcessor:
         # Configuração do MySQL
         self.mysql_config = mysql_config or {
             'host': 'localhost',
-            'user': 'root',
-            'password': 'spfc@633',
+            'user': 'giovanni',
+            'password': 'Senha@123',
             'database': 'dengue_db',
             'port': 3306
         }
@@ -397,28 +397,30 @@ class DengueCSVProcessor:
         return False
     
     def clean_state_name(self, state_column: str) -> str:
-        """Remove o código numérico do nome do estado e retorna a sigla UF"""
         state_column = str(state_column).strip().replace('"', '')
-        
+
         if self.should_ignore_column(state_column):
             return None
-        
+
+        # Já é UF
         if len(state_column) == 2 and state_column.isalpha():
             return state_column.upper()
-        
+
+        # Código numérico
         match = re.match(r'(\d{2})', state_column)
         if match:
             code = match.group(1)
             if code == '00':
                 return None
-            return self.estados_map.get(code, code)
-        
-        state_upper = state_column.upper()
-        for uf, nome in self.estados_nomes.items():
-            if nome.upper() in state_upper:
-                return uf
-        
-        return state_column
+            return self.estados_map.get(code)
+
+        normalized = self.normalize_state_name(state_column)
+
+        if len(normalized) == 2:
+            return normalized
+
+        return None
+
     
     def clean_data_value(self, value: Any) -> int:
         """Limpa os valores dos dados, convertendo '-' e valores vazios para 0"""
@@ -642,7 +644,7 @@ class DengueCSVProcessor:
         filename = os.path.basename(filepath)
         data_type = self.detect_data_type(filepath)
         year = self.extract_year_from_filename(filename)
-        
+
         print(f"\n=== Estrutura do arquivo {filepath} ===")
         print(f"Nome do arquivo: {filename}")
         print(f"Tipo de dados: {data_type}")
@@ -914,8 +916,8 @@ if __name__ == "__main__":
     # Configuração do MySQL - AJUSTE CONFORME SUA CONFIGURAÇÃO
     mysql_config = {
         'host': 'localhost',          # Servidor MySQL
-        'user': 'root',               # Usuário MySQL
-        'password': 'spfc@633',       # Senha MySQL (deixe vazio se não houver)
+        'user': 'giovanni',               # Usuário MySQL
+        'password': 'Senha@123',       # Senha MySQL (deixe vazio se não houver)
         'database': 'dengue_db',      # Nome do banco de dados
         'port': 3306                  # Porta MySQL
     }

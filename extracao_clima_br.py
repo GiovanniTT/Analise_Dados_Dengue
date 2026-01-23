@@ -246,22 +246,51 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
     Reads a CSV file with robust error handling, now including temperature data.
     """
     try:
-        # Try to read metadata
-        try:
-            file_metadata = pandas.read_csv(
-                path, encoding="ansi", sep=";", nrows=8, header=None
-            )
-            metadata_dict = dict(zip(file_metadata[0], file_metadata[1]))
-            uf = str(metadata_dict.get("UF:", "SP"))  # Default to SP if not found
-        except:
-            uf = "SP"  # Default fallback
+        # ===============================
+        # 1️⃣ LEITURA DE METADADOS (UF)
+        # ===============================
+        uf = None
+        encodings_meta = ["ansi", "latin1", "cp1252", "utf-8"]
 
-        # Clean UF value
-        uf = uf.strip().upper()
-        if uf not in STATE_DICT:
-            uf = "SP"  # Default to SP if unknown state
+        for enc in encodings_meta:
+            try:
+                file_metadata = pandas.read_csv(
+                    path,
+                    encoding=enc,
+                    sep=";",
+                    nrows=8,
+                    header=None
+                )
 
-        # Try to read data with different encodings
+                file_metadata[0] = (
+                    file_metadata[0]
+                    .astype(str)
+                    .str.replace("\ufeff", "", regex=False)
+                    .str.strip()
+                )
+                file_metadata[1] = file_metadata[1].astype(str).str.strip()
+
+                metadata_dict = dict(zip(file_metadata[0], file_metadata[1]))
+
+                for key in ("UF:", "UF"):
+                    if key in metadata_dict:
+                        candidate = metadata_dict[key].upper()
+                        if candidate in STATE_DICT:
+                            uf = candidate
+                            break
+
+                if uf:
+                    break
+            except:
+                continue
+
+        if uf is None:
+            print(f"⚠️ UF não identificada → {path}")
+            return None
+
+        # ===============================
+        # 2️⃣ LEITURA DOS DADOS
+        # ===============================
         encodings = ["ansi", "utf-8", "latin1", "cp1252"]
         file_data = None
         
@@ -270,7 +299,7 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
                 file_data = pandas.read_csv(
                     path,
                     encoding=encoding,
-                    on_bad_lines="skip",  # Skip bad lines instead of warning
+                    on_bad_lines="skip",
                     sep=";",
                     engine="python",
                     skiprows=8,
@@ -287,27 +316,23 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
                     },
                 )
                 break
-            except Exception as e:
+            except:
                 continue
         
         if file_data is None:
             print(f"Erro ao ler arquivo: {path}")
             return None
 
-        # Try different date column names
+        # ===============================
+        # 3️⃣ IDENTIFICAÇÃO DE COLUNAS
+        # ===============================
         date_columns = ["DATA (YYYY-MM-DD)", "DATA", "Data", "data"]
-        date = None
-        
-        for col_name in date_columns:
-            if col_name in file_data.columns:
-                date = file_data[col_name]
-                break
-        
+        date = next((file_data[c] for c in date_columns if c in file_data.columns), None)
+
         if date is None:
             print(f"Coluna de data não encontrada em: {path}")
             return None
 
-        # Try different precipitation column names
         precip_columns = [
             "PRECIPITAÇÃO TOTAL, HORÁRIO (mm)",
             "PRECIPITA  O TOTAL, HOR RIO (mm)",
@@ -317,18 +342,15 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
             "PRECIPITAÇÃO",
             "PRECIPITACAO"
         ]
-        
-        precipitation_data = None
-        for col_name in precip_columns:
-            if col_name in file_data.columns:
-                precipitation_data = file_data[col_name]
-                break
-        
+
+        precipitation_data = next(
+            (file_data[c] for c in precip_columns if c in file_data.columns), None
+        )
+
         if precipitation_data is None:
             print(f"Coluna de precipitação não encontrada em: {path}")
             return None
 
-        # Try different temperature column names
         temp_max_columns = [
             "TEMPERATURA M XIMA NA HORA ANT. (AUT) ( C)",
             "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)",
@@ -336,7 +358,7 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
             "TEMPERATURA MAX NA HORA ANT. (AUT)",
             "TEMP MAX"
         ]
-        
+
         temp_min_columns = [
             "TEMPERATURA M NIMA NA HORA ANT. (AUT) ( C)",
             "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)",
@@ -344,50 +366,28 @@ def read_csv(path: str) -> Optional[PreProcessedData]:
             "TEMPERATURA MIN NA HORA ANT. (AUT)",
             "TEMP MIN"
         ]
-        
-        temp_max_data = None
-        temp_min_data = None
-        
-        for col_name in temp_max_columns:
-            if col_name in file_data.columns:
-                temp_max_data = file_data[col_name]
-                break
-        
-        for col_name in temp_min_columns:
-            if col_name in file_data.columns:
-                temp_min_data = file_data[col_name]
-                break
-        
-        if temp_max_data is None or temp_min_data is None:
-            print(f"Colunas de temperatura não encontradas em: {path}")
-            # Create empty series to maintain structure
-            temp_max_data = pandas.Series(dtype=float64)
-            temp_min_data = pandas.Series(dtype=float64)
 
-        # Clean and validate data
-        if date is not None:
-            date = date.dropna()
-        if precipitation_data is not None:
-            precipitation_data = precipitation_data.dropna()
-        if temp_max_data is not None:
-            temp_max_data = temp_max_data.dropna()
-        if temp_min_data is not None:
-            temp_min_data = temp_min_data.dropna()
+        temp_max_data = next(
+            (file_data[c] for c in temp_max_columns if c in file_data.columns),
+            pandas.Series(dtype=float64)
+        )
 
-        data: PreProcessedData = {
+        temp_min_data = next(
+            (file_data[c] for c in temp_min_columns if c in file_data.columns),
+            pandas.Series(dtype=float64)
+        )
+
+        return {
             "uf": uf,
-            "day_and_month": date,
-            "precipitation": precipitation_data,
-            "temp_max": temp_max_data,
-            "temp_min": temp_min_data,
+            "day_and_month": date.dropna(),
+            "precipitation": precipitation_data.dropna(),
+            "temp_max": temp_max_data.dropna(),
+            "temp_min": temp_min_data.dropna(),
         }
 
-        return data
-    
     except Exception as e:
         print(f"Erro ao processar arquivo {path}: {e}")
         return None
-
 
 def process_file(file_path: str, pre_processed_data: Dict[int, Dict[str, List[PreProcessedData]]], total_files: int) -> None:
     """
