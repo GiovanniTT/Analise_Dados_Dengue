@@ -1,10 +1,8 @@
-import pandas as pd
-import glob
 import os
-import re
-import json
-from typing import List, Dict, Any, Optional
-from io import StringIO
+import threading
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from glob import glob
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, TypedDict, Union, Optional
 
@@ -465,60 +463,190 @@ def process_state_data(year: int, state_data: Dict[str, List[PreProcessedData]])
                 
                 if not dataframes:
                     continue
+                
+                combined_data = pandas.concat(dataframes, ignore_index=True)
+                
+                # Extract month more safely
+                def extract_month(x):
+                    try:
+                        if pandas.isna(x) or x is None:
+                            return 13
+                        parts = str(x).split("/")
+                        if len(parts) >= 2:
+                            month = int(parts[1])
+                            return month if 1 <= month <= 12 else 13
+                        return 13
+                    except:
+                        return 13
 
-                for col in df.columns[1:]:
-                    if col in self.colunas_ignoradas:
-                        continue
+                combined_data["month"] = combined_data["day_and_month"].apply(extract_month)
+                
+                # Filter out invalid months
+                combined_data = combined_data[combined_data["month"] != 13]
+                
+                if combined_data.empty:
+                    continue
 
-                    uf = self.estados_map.get(col[:2])
-                    if not uf:
-                        continue
+                # Group by month and calculate aggregations
+                grouped_data = combined_data.groupby("month", as_index=False).agg({
+                    "precipitation": "sum",
+                    "temp_avg": "mean"
+                })
 
-                    valor = int(row[col]) if pd.notna(row[col]) else 0
-                    key = (ano, mes, uf)
+                for _, row in grouped_data.iterrows():
+                    if pandas.notna(row["month"]) and pandas.notna(row["precipitation"]):
+                        temp_avg = row["temp_avg"] if pandas.notna(row["temp_avg"]) else 0.0
+                        
+                        output_data.append({
+                            "uf": STATE_DICT.get(state, state),
+                            "year": year,
+                            "day_and_month": MONTH_DICT.get(int(row["month"]), "Desconhecido"),
+                            "data": {
+                                "precipitation": round(float(row["precipitation"]), 2),
+                                "temperature_avg": round(float(temp_avg), 2)
+                            }
+                        })
+                        
+            except Exception as e:
+                print(f"Erro ao processar dados do estado {state} no ano {year}: {e}")
+                continue
 
-                    if key not in self.dados_consolidados:
-                        self.dados_consolidados[key] = {
-                            'Ano': ano,
-                            'Mes': mes,
-                            'Estado': uf,
-                            'Casos': 0,
-                            'Mortes': 0,
-                            'Temperatura': 0.0,
-                            'Precipitacao': 0.0
-                        }
+    except Exception as e:
+        print(f"Erro ao processar dados do ano {year}: {e}")
 
-                    if tipo == 'casos':
-                        self.dados_consolidados[key]['Casos'] = valor
-                    else:
-                        self.dados_consolidados[key]['Mortes'] = valor
+    return output_data
 
-        print(f"CSVs processados: {len(self.dados_consolidados)} registros consolidados")
 
-    def execute_pipeline(self, csv_dir):
+def write_output_to_file(output: OutputData) -> None:
+    """
+    Writes output data to file with error handling, now including temperature.
+    """
+    try:
+        path = Path("./output.csv")
+        exists = path.exists()
 
-        self.create_postgres_connection()
-        self.create_tables()
-        self.process_multiple_csvs(csv_dir)
-        self.insert_data_to_postgres()
-        self.update_statistics()
-        self.close_postgres_connection()
+        data = {
+            "Ano": output["year"],
+            "Mês": output["day_and_month"],
+            "UF": output["uf"],
+            "Precipitação Total": f"{output['data']['precipitation']}",
+            "Temperatura Média": f"{output['data']['temperature_avg']}",
+        }
+
+        if exists:
+            try:
+                open_csv = pandas.read_csv("./output.csv", sep=";", encoding="ansi")
+                dataframe = pandas.DataFrame([data])
+                combined_dataframe = pandas.concat([open_csv, dataframe], ignore_index=True)
+            except:
+                combined_dataframe = pandas.DataFrame([data])
+        else:
+            combined_dataframe = pandas.DataFrame([data])
+
+        combined_dataframe.to_csv(
+            path_or_buf="./output.csv", index=False, mode="w", encoding="ansi", sep=";"
+        )
+    except Exception as e:
+        print(f"Erro ao escrever arquivo: {e}")
+
+
+def write_output_thread_safe(output: OutputData, total_outputs: int) -> None:
+    """
+    Escreve os dados de saída no arquivo de forma thread-safe.
+    """
+    global written_outputs
+
+    try:
+        with write_lock:
+            write_output_to_file(output)
+    except Exception as e:
+        print(f"Erro ao escrever dados: {e}")
+    
+    with progress_lock:
+        written_outputs += 1
+        show_progress("Escrevendo resultados...", written_outputs, total_outputs)
+
+
+def main():
+    """
+    Main function with improved error handling.
+    """
+    global processed_files, written_outputs
+    
+    try:
+        file_paths = get_files()
+        files_len = len(file_paths)
+
+        if files_len == 0:
+            print("Nenhum arquivo CSV encontrado!")
+            return
+
+        file_paths.sort()
+        pre_processed_data: Dict[int, Dict[str, List[PreProcessedData]]] = {}
+
+        print(f"Processando {files_len} arquivos...")
+
+        # Read files in parallel with reduced workers to avoid overwhelming
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for file_path in file_paths:
+                future = executor.submit(process_file, file_path, pre_processed_data, files_len)
+                futures.append(future)
+            
+            # Wait for all futures to complete
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Erro em thread de leitura: {e}")
+
+        print("Processando dados...")
+        
+        # Process data in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for year, state_data in pre_processed_data.items():
+                future = executor.submit(process_state_data, year, state_data)
+                futures.append(future)
+            
+            results = []
+            for future in futures:
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    print(f"Erro em thread de processamento: {e}")
+
+        output = [item for sublist in results for item in sublist]
+        output_len = len(output)
+
+        if output_len == 0:
+            print("Nenhum dado válido encontrado!")
+            return
+
+        print(f"Escrevendo {output_len} registros...")
+
+        # Write output in parallel
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = []
+            for data in output:
+                future = executor.submit(write_output_thread_safe, data, output_len)
+                futures.append(future)
+            
+            # Wait for all futures to complete
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Erro em thread de escrita: {e}")
+
+        print("Processamento concluído!")
+
+    except Exception as e:
+        print(f"Erro na função main: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 if __name__ == "__main__":
-
-    pg_config = {
-        "host": "localhost",
-        "user": "postgres",
-        "password": "SUA_SENHA",
-        "dbname": "dengue_db",
-        "port": 5432
-    }
-
-    processor = DengueCSVProcessor(pg_config)
-
-    dados_dir = "./dados_casos_mortes"
-
-    if os.path.exists(dados_dir):
-        processor.execute_pipeline(dados_dir)
-    else:
-        print("Diretório de dados não encontrado")
+    main()
