@@ -6,188 +6,464 @@ import json
 from typing import List, Dict, Any, Optional
 from io import StringIO
 from datetime import datetime
+from typing import Dict, List, TypedDict, Union, Optional
 
-import psycopg2
-from psycopg2.extras import execute_batch, Json, RealDictCursor
+import pandas
+from numpy import float64
+from pandas import Series
+
+processed_files = 0
+written_outputs = 0
+
+write_lock = threading.Lock()
+progress_lock = threading.Lock()
+
+STATE_DICT = {
+    "AC": "Acre",
+    "AP": "Amapá",
+    "AM": "Amazonas",
+    "PA": "Pará",
+    "RO": "Rondônia",
+    "RR": "Roraima",
+    "TO": "Tocantins",
+    "AL": "Alagoas",
+    "BA": "Bahia",
+    "CE": "Ceará",
+    "MA": "Maranhão",
+    "PB": "Paraíba",
+    "PE": "Pernambuco",
+    "PI": "Piauí",
+    "RN": "Rio Grande do Norte",
+    "SE": "Sergipe",
+    "DF": "Distrito Federal",
+    "GO": "Goiás",
+    "MT": "Mato Grosso",
+    "MS": "Mato Grosso do Sul",
+    "ES": "Espírito Santo",
+    "MG": "Minas Gerais",
+    "RJ": "Rio de Janeiro",
+    "SP": "São Paulo",
+    "PR": "Paraná",
+    "RS": "Rio Grande do Sul",
+    "SC": "Santa Catarina"
+}
+
+MONTH_DICT = {
+    1: "Janeiro",
+    2: "Fevereiro",
+    3: "Março",
+    4: "Abril",
+    5: "Maio",
+    6: "Junho",
+    7: "Julho",
+    8: "Agosto",
+    9: "Setembro",
+    10: "Outubro",
+    11: "Novembro",
+    12: "Dezembro",
+}
 
 
-class DengueCSVProcessor:
+class YearData(TypedDict):
+    """
+    A TypedDict representing yearly data.
 
-    def __init__(self, pg_config: Optional[Dict] = None):
+    Attributes:
+        precipitation (float): The total precipitation for the year, measured in millimeters.
+        temperature_avg (float): The average temperature for the year, measured in Celsius.
+    """
 
-        self.meses_map = {
-            'Janeiro': 'Janeiro',
-            'Fevereiro': 'Fevereiro',
-            'Marco': 'Marco',
-            'Abril': 'Abril',
-            'Maio': 'Maio',
-            'Junho': 'Junho',
-            'Julho': 'Julho',
-            'Agosto': 'Agosto',
-            'Setembro': 'Setembro',
-            'Outubro': 'Outubro',
-            'Novembro': 'Novembro',
-            'Dezembro': 'Dezembro'
-        }
+    precipitation: float64
+    temperature_avg: float64
 
-        self.estados_map = {
-            '11': 'RO', '12': 'AC', '13': 'AM', '14': 'RR', '15': 'PA', '16': 'AP',
-            '17': 'TO', '21': 'MA', '22': 'PI', '23': 'CE', '24': 'RN', '25': 'PB',
-            '26': 'PE', '27': 'AL', '28': 'SE', '29': 'BA', '31': 'MG', '32': 'ES',
-            '33': 'RJ', '35': 'SP', '41': 'PR', '42': 'SC', '43': 'RS', '50': 'MS',
-            '51': 'MT', '52': 'GO', '53': 'DF'
-        }
 
-        self.colunas_ignoradas = {
-            'IG', 'IGNORADO', 'IGNORADO/EXTERIOR', 'EXTERIOR',
-            'TOTAL', '00', '00 IGNORADO'
-        }
+class PreProcessedData(TypedDict):
+    """
+    PreProcessedData is a TypedDict that represents the structure of pre-processed data.
 
-        self.dados_consolidados = {}
+    Attributes:
+        uf (str): The state abbreviation (e.g., 'SP' for São Paulo).
+        day_and_month (Series): A pandas Series containing day and month information.
+        precipitation (Series): A pandas Series containing precipitation data.
+        temp_max (Series): A pandas Series containing maximum temperature data.
+        temp_min (Series): A pandas Series containing minimum temperature data.
+    """
 
-        self.pg_config = pg_config
-        self.connection = None
+    uf: str
+    day_and_month: Series
+    precipitation: Series
+    temp_max: Series
+    temp_min: Series
 
-    # ==========================================================
-    # CONEXÃO POSTGRES
-    # ==========================================================
-    def create_postgres_connection(self) -> bool:
+
+class OutputData(TypedDict):
+    """
+    OutputData is a TypedDict that represents the structure of output data.
+
+    Attributes:
+        uf (str): The abbreviation of the state (Unidade Federativa) in Brazil.
+        year (int): The year associated with the data.
+        day_and_month (str): The day and month in the format "DD/MM".
+        data (YearData): The data associated with the specified year.
+    """
+    uf: str
+    year: int
+    day_and_month: Union[str, int]
+    data: YearData
+
+
+def convert_int_str_to_float(col: Union[str, int]) -> float64:
+    """
+    Converts an integer or a string representing a number into a float64 value.
+    """
+    
+    if isinstance(col, int):
+        if col >= 0:
+            return float64(col)
+        return float64(0.0)
+    elif isinstance(col, str):
+        col = col.strip()
+        if col == "" or col == "-9999":
+            return float64(0.0)
         try:
-            self.connection = psycopg2.connect(**self.pg_config)
-            print("Conectado ao PostgreSQL")
-            return True
-        except Exception as e:
-            print(f"Erro ao conectar no PostgreSQL: {e}")
-            return False
+            find_idx = col.find(',')
+            if find_idx == 0:
+                col_tr = float64(col.replace(",", "0."))
+            else:
+                col_tr = float64(col.replace(',', '.'))
+            if col_tr >= 0:
+                return col_tr
+        except (ValueError, TypeError):
+            return float64(0.0)
+    return float64(0.0)
 
-    def close_postgres_connection(self):
-        if self.connection:
-            self.connection.close()
-            print("🔒 Conexão PostgreSQL fechada")
 
-    # ==========================================================
-    # CRIAÇÃO DAS TABELAS
-    # ==========================================================
-    def create_tables(self):
+def convert_temperature_str_to_float(col: Union[str, int]) -> float64:
+    """
+    Converts temperature data (string or int) to float64, handling negative values.
+    """
+    
+    if isinstance(col, int):
+        return float64(col)
+    elif isinstance(col, str):
+        col = col.strip()
+        if col == "" or col == "-9999":
+            return float64(0.0)
+        try:
+            find_idx = col.find(',')
+            if find_idx == 0:
+                col_tr = float64(col.replace(",", "0."))
+            else:
+                col_tr = float64(col.replace(',', '.'))
+            return col_tr  # Allow negative temperatures
+        except (ValueError, TypeError):
+            return float64(0.0)
+    return float64(0.0)
 
-        ddl = """
-        CREATE TABLE IF NOT EXISTS dengue_dados (
-            id SERIAL PRIMARY KEY,
-            ano INT NOT NULL,
-            mes VARCHAR(20) NOT NULL,
-            estado VARCHAR(2) NOT NULL,
-            casos INT DEFAULT 0,
-            mortes INT DEFAULT 0,
-            temperatura NUMERIC(5,2) DEFAULT 0,
-            precipitacao NUMERIC(8,2) DEFAULT 0,
-            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE (ano, mes, estado)
-        );
 
-        CREATE TABLE IF NOT EXISTS processamento_log (
-            id SERIAL PRIMARY KEY,
-            arquivo VARCHAR(255),
-            tipo_dados VARCHAR(20),
-            ano INT,
-            registros_processados INT,
-            status VARCHAR(20),
-            mensagem TEXT,
-            data_processamento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+def convert_str_to_day_and_month(line: str) -> str:
+    """
+    Converts a date string to day/month format with robust error handling.
+    """
+    if not line or pandas.isna(line):
+        return "1/1"  # Default fallback
+    
+    try:
+        line = str(line).strip()
+        
+        # Handle different date formats
+        if '/' in line:
+            parts = line.split('/')
+            if len(parts) >= 3:
+                if len(parts[0]) == 4:  # YYYY/MM/DD
+                    year, month, day = parts[0], parts[1], parts[2]
+                else:  # DD/MM/YYYY
+                    day, month, year = parts[0], parts[1], parts[2]
+                return f"{int(day)}/{int(month)}"
+        elif '-' in line:
+            # Handle ISO format YYYY-MM-DD
+            date = datetime.fromisoformat(line.split()[0])  # Remove time if present
+            return f"{date.day}/{date.month}"
+        else:
+            # Try to parse as timestamp or other formats
+            try:
+                date = pandas.to_datetime(line)
+                return f"{date.day}/{date.month}"
+            except:
+                return "1/1"
+                
+    except (ValueError, IndexError, TypeError) as e:
+        print(f"Erro ao converter data '{line}': {e}")
+        return "1/1"  # Default fallback
 
-        CREATE TABLE IF NOT EXISTS estatisticas (
-            id SERIAL PRIMARY KEY,
-            total_registros INT,
-            anos_processados JSONB,
-            estados_processados JSONB,
-            total_casos INT,
-            total_mortes INT,
-            data_atualizacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
 
-        with self.connection.cursor() as cursor:
-            cursor.execute(ddl)
-            self.connection.commit()
+def get_files() -> List[str]:
+    """
+    Retrieves a list of all CSV files in the current directory and its subdirectories.
+    """
+    files = glob("./**/*.csv", recursive=True)
+    return files
 
-        print("Tabelas criadas/verificadas")
 
-    # ==========================================================
-    # INSERT / UPSERT
-    # ==========================================================
-    def insert_data_to_postgres(self):
+def get_path_year(path: str) -> int:
+    """
+    Extracts year from path with error handling.
+    """
+    try:
+        # Try different path separators
+        path_split = path.replace('/', '\\').split("\\")
+        for part in path_split:
+            if part.isdigit() and len(part) == 4:
+                year = int(part)
+                if 1900 <= year <= 2100:  # Reasonable year range
+                    return year
+        
+        # Fallback: try to find year in filename
+        filename = Path(path).stem
+        for part in filename.split('_'):
+            if part.isdigit() and len(part) == 4:
+                year = int(part)
+                if 1900 <= year <= 2100:
+                    return year
+        
+        return 2000  # Default fallback
+    except (ValueError, IndexError):
+        return 2000
 
-        insert_sql = """
-        INSERT INTO dengue_dados
-        (ano, mes, estado, casos, mortes, temperatura, precipitacao)
-        VALUES (%(Ano)s, %(Mes)s, %(Estado)s, %(Casos)s, %(Mortes)s, %(Temperatura)s, %(Precipitacao)s)
-        ON CONFLICT (ano, mes, estado)
-        DO UPDATE SET
-            casos = EXCLUDED.casos,
-            mortes = EXCLUDED.mortes,
-            temperatura = EXCLUDED.temperatura,
-            precipitacao = EXCLUDED.precipitacao,
-            data_atualizacao = CURRENT_TIMESTAMP
-        """
 
-        dados = list(self.dados_consolidados.values())
+def show_progress(stage: str, current: int, length: int) -> None:
+    """
+    Displays a progress update in the console.
+    """
+    try:
+        os.system("cls" if os.name == 'nt' else "clear")
+        print(stage)
+        print(f"{current}/{length}")
+    except:
+        pass  # Continue if screen clear fails
 
-        with self.connection.cursor() as cursor:
-            execute_batch(cursor, insert_sql, dados, page_size=1000)
-            self.connection.commit()
 
-        print(f"{len(dados)} registros inseridos/atualizados")
+def read_csv(path: str) -> Optional[PreProcessedData]:
+    """
+    Reads a CSV file with robust error handling, now including temperature data.
+    """
+    try:
+        # ===============================
+        # 1️⃣ LEITURA DE METADADOS (UF)
+        # ===============================
+        uf = None
+        encodings_meta = ["ansi", "latin1", "cp1252", "utf-8"]
 
-    def update_statistics(self):
+        for enc in encodings_meta:
+            try:
+                file_metadata = pandas.read_csv(
+                    path,
+                    encoding=enc,
+                    sep=";",
+                    nrows=8,
+                    header=None
+                )
 
-        with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+                file_metadata[0] = (
+                    file_metadata[0]
+                    .astype(str)
+                    .str.replace("\ufeff", "", regex=False)
+                    .str.strip()
+                )
+                file_metadata[1] = file_metadata[1].astype(str).str.strip()
 
-            cursor.execute("""
-                SELECT COUNT(*) total_registros,
-                       SUM(casos) total_casos,
-                       SUM(mortes) total_mortes
-                FROM dengue_dados
-            """)
-            stats = cursor.fetchone()
+                metadata_dict = dict(zip(file_metadata[0], file_metadata[1]))
 
-            cursor.execute("SELECT DISTINCT ano FROM dengue_dados ORDER BY ano")
-            anos = [r['ano'] for r in cursor.fetchall()]
+                for key in ("UF:", "UF"):
+                    if key in metadata_dict:
+                        candidate = metadata_dict[key].upper()
+                        if candidate in STATE_DICT:
+                            uf = candidate
+                            break
 
-            cursor.execute("SELECT DISTINCT estado FROM dengue_dados ORDER BY estado")
-            estados = [r['estado'] for r in cursor.fetchall()]
+                if uf:
+                    break
+            except:
+                continue
 
-            cursor.execute("DELETE FROM estatisticas")
+        if uf is None:
+            print(f"⚠️ UF não identificada → {path}")
+            return None
 
-            cursor.execute("""
-                INSERT INTO estatisticas
-                (total_registros, anos_processados, estados_processados, total_casos, total_mortes)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (
-                stats['total_registros'],
-                Json(anos),
-                Json(estados),
-                stats['total_casos'] or 0,
-                stats['total_mortes'] or 0
-            ))
+        # ===============================
+        # 2️⃣ LEITURA DOS DADOS
+        # ===============================
+        encodings = ["ansi", "utf-8", "latin1", "cp1252"]
+        file_data = None
+        
+        for encoding in encodings:
+            try:
+                file_data = pandas.read_csv(
+                    path,
+                    encoding=encoding,
+                    on_bad_lines="skip",
+                    sep=";",
+                    engine="python",
+                    skiprows=8,
+                    converters={
+                        "PRECIPITAÇÃO TOTAL, HORÁRIO (mm)": convert_int_str_to_float,
+                        "PRECIPITA  O TOTAL, HOR RIO (mm)": convert_int_str_to_float,
+                        "TEMPERATURA M XIMA NA HORA ANT. (AUT) ( C)": convert_temperature_str_to_float,
+                        "TEMPERATURA M NIMA NA HORA ANT. (AUT) ( C)": convert_temperature_str_to_float,
+                        "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)": convert_temperature_str_to_float,
+                        "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)": convert_temperature_str_to_float,
+                        "DATA (YYYY-MM-DD)": convert_str_to_day_and_month,
+                        "DATA": convert_str_to_day_and_month,
+                        "Data": convert_str_to_day_and_month
+                    },
+                )
+                break
+            except:
+                continue
+        
+        if file_data is None:
+            print(f"Erro ao ler arquivo: {path}")
+            return None
 
-            self.connection.commit()
+        # ===============================
+        # 3️⃣ IDENTIFICAÇÃO DE COLUNAS
+        # ===============================
+        date_columns = ["DATA (YYYY-MM-DD)", "DATA", "Data", "data"]
+        date = next((file_data[c] for c in date_columns if c in file_data.columns), None)
 
-        print("Estatísticas atualizadas")
+        if date is None:
+            print(f"Coluna de data não encontrada em: {path}")
+            return None
 
-    def process_multiple_csvs(self, csv_dir):
+        precip_columns = [
+            "PRECIPITAÇÃO TOTAL, HORÁRIO (mm)",
+            "PRECIPITA  O TOTAL, HOR RIO (mm)",
+            "PRECIPITACAO TOTAL, HORARIO (mm)",
+            "PRECIPITAÇÃO TOTAL (mm)",
+            "PRECIPITACAO TOTAL (mm)",
+            "PRECIPITAÇÃO",
+            "PRECIPITACAO"
+        ]
 
-        arquivos = glob.glob(os.path.join(csv_dir, "*.csv"))
+        precipitation_data = next(
+            (file_data[c] for c in precip_columns if c in file_data.columns), None
+        )
 
-        for arquivo in arquivos:
-            ano = int(re.search(r'\d{4}', arquivo).group())
-            tipo = 'mortes' if arquivo.lower().endswith('d.csv') else 'casos'
+        if precipitation_data is None:
+            print(f"Coluna de precipitação não encontrada em: {path}")
+            return None
 
-            df = pd.read_csv(arquivo, sep=';', encoding='latin1')
+        temp_max_columns = [
+            "TEMPERATURA M XIMA NA HORA ANT. (AUT) ( C)",
+            "TEMPERATURA MÁXIMA NA HORA ANT. (AUT) (°C)",
+            "TEMPERATURA MAXIMA NA HORA ANT. (AUT) (C)",
+            "TEMPERATURA MAX NA HORA ANT. (AUT)",
+            "TEMP MAX"
+        ]
 
-            for _, row in df.iterrows():
-                mes = row.iloc[0]
-                if mes not in self.meses_map:
+        temp_min_columns = [
+            "TEMPERATURA M NIMA NA HORA ANT. (AUT) ( C)",
+            "TEMPERATURA MÍNIMA NA HORA ANT. (AUT) (°C)",
+            "TEMPERATURA MINIMA NA HORA ANT. (AUT) (C)",
+            "TEMPERATURA MIN NA HORA ANT. (AUT)",
+            "TEMP MIN"
+        ]
+
+        temp_max_data = next(
+            (file_data[c] for c in temp_max_columns if c in file_data.columns),
+            pandas.Series(dtype=float64)
+        )
+
+        temp_min_data = next(
+            (file_data[c] for c in temp_min_columns if c in file_data.columns),
+            pandas.Series(dtype=float64)
+        )
+
+        return {
+            "uf": uf,
+            "day_and_month": date.dropna(),
+            "precipitation": precipitation_data.dropna(),
+            "temp_max": temp_max_data.dropna(),
+            "temp_min": temp_min_data.dropna(),
+        }
+
+    except Exception as e:
+        print(f"Erro ao processar arquivo {path}: {e}")
+        return None
+
+def process_file(file_path: str, pre_processed_data: Dict[int, Dict[str, List[PreProcessedData]]], total_files: int) -> None:
+    """
+    Processa um único arquivo CSV com tratamento de erros robusto.
+    """
+    global processed_files
+
+    try:
+        year = get_path_year(file_path)
+        data = read_csv(file_path)
+        
+        if data is None:
+            processed_files += 1
+            return
+
+        with progress_lock:
+            if year not in pre_processed_data:
+                pre_processed_data[year] = {}
+
+            if data["uf"] not in pre_processed_data[year]:
+                pre_processed_data[year][data["uf"]] = []
+            
+            pre_processed_data[year][data["uf"]].append(data)
+        
+        processed_files += 1
+        show_progress("Lendo arquivos...", processed_files, total_files)
+        
+    except Exception as e:
+        print(f"Erro ao processar arquivo {file_path}: {e}")
+        processed_files += 1
+
+
+def process_state_data(year: int, state_data: Dict[str, List[PreProcessedData]]) -> List[OutputData]:
+    """
+    Processes data for a specific year and state with error handling, now including temperature.
+    """
+    output_data: List[OutputData] = []
+
+    try:
+        for state, pre_data in state_data.items():
+            if not pre_data:
+                continue
+                
+            # Filter out None values and empty data
+            valid_data = [data for data in pre_data if data is not None and 
+                         data.get("day_and_month") is not None and 
+                         data.get("precipitation") is not None]
+            
+            if not valid_data:
+                continue
+
+            try:
+                # Combine data more safely
+                dataframes = []
+                for data in valid_data:
+                    try:
+                        # Calculate average temperature from max and min
+                        temp_avg_series = pandas.Series(dtype=float64)
+                        
+                        if (len(data["temp_max"]) > 0 and len(data["temp_min"]) > 0 and
+                            len(data["temp_max"]) == len(data["temp_min"])):
+                            temp_avg_series = (data["temp_max"] + data["temp_min"]) / 2
+                        
+                        df = pandas.DataFrame({
+                            "day_and_month": data["day_and_month"], 
+                            "precipitation": data["precipitation"],
+                            "temp_avg": temp_avg_series if len(temp_avg_series) > 0 else pandas.Series([0.0] * len(data["day_and_month"]), dtype=float64)
+                        })
+                        dataframes.append(df)
+                    except Exception as e:
+                        print(f"Erro ao criar DataFrame para {state}: {e}")
+                        continue
+                
+                if not dataframes:
                     continue
 
                 for col in df.columns[1:]:
