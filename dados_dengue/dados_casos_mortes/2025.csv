@@ -1,0 +1,45 @@
+DENGUE - Notificações registradas no Sistema de Informação de Agravos de Notificação - Brasil
+Casos Prováveis por Mês notificação e UF de residência
+Período:2025
+"Mês notificação";"RO";"AC";"AM";"RR";"PA";"AP";"TO";"MA";"PI";"CE";"RN";"PB";"PE";"AL";"SE";"BA";"MG";"ES";"RJ";"SP";"PR";"SC";"RS";"MS";"MT";"GO";"DF";"IG";"Total"
+"Janeiro";127;2151;715;23;2257;362;317;299;376;218;420;512;888;252;56;2799;17258;6937;3191;116354;7194;1137;746;992;7077;10811;1207;-;184676
+"Fevereiro";181;2330;698;37;3319;485;307;724;832;321;534;1014;1302;303;42;3927;28999;5774;6655;161728;13705;1175;1740;1531;6712;15026;1471;1;260873
+"Marco";386;1503;889;46;2712;322;314;1072;1205;511;886;767;1717;413;39;4564;32955;3313;5237;238773;29140;3758;9834;2603;4847;14443;1342;-;363591
+"Abril";427;757;611;69;2082;230;366;790;1731;1028;1226;1044;2385;583;49;4914;30867;3396;5360;185671;28324;7901;30787;2935;4371;15375;1151;2;334432
+"Maio";388;491;434;52;1602;227;425;663;1593;964;1146;872;1845;567;81;4610;22761;2997;3870;108081;17614;6273;29980;2434;4754;16353;1221;2;232300
+"Junho";284;281;256;67;931;206;263;452;1085;541;712;681;1758;730;89;2855;8671;2355;1626;33032;4244;2165;7297;1187;2645;9378;685;-;84476
+"Julho";175;183;244;29;821;172;150;387;797;531;1231;575;2276;1085;71;2217;3421;1694;797;12226;1055;700;1454;467;1193;4640;592;1;39184
+"Agosto";77;129;206;28;818;186;135;347;529;528;1193;499;2741;1613;73;1537;2385;1420;617;7067;672;301;752;241;699;3152;589;-;28534
+"Setembro";92;170;267;46;905;136;84;217;382;377;1014;494;2514;1072;58;1510;3504;1899;639;8111;1048;361;315;287;607;3221;709;1;30040
+"Outubro";77;186;368;31;754;77;116;306;300;280;663;470;2268;760;77;1400;4853;1821;584;8860;1465;538;347;246;714;3824;760;-;32145
+"Novembro";54;245;236;37;700;19;248;236;203;329;456;434;1730;343;138;1367;5630;1294;540;8557;1853;470;1040;445;921;3528;578;-;31631
+"Dezembro";133;799;338;30;911;21;804;341;205;478;386;437;1372;282;295;1195;7416;1883;574;12122;4937;1308;1216;520;1173;4315;838;-;44329
+"Total";2401;9225;5262;495;17812;2443;3529;5834;9238;6106;9867;7799;22796;8003;1068;32895;168720;34783;29690;900582;111251;26087;85508;13888;35713;104066;11143;7;1666211
+ Fonte: Ministério da Saúde/SVSA - Sistema de Informação de Agravos de Notificação - Sinan Net
+ Notas:
+ 
+ Para os casos prováveis foram incluídas todas notificações, exceto casos descartados.
+ As bases de dados de dengue aqui disponíveis compõem um banco único a partir de 2014, podendo haver pequenas divergências com os dados disponibilizados pelo CGARB
+ (Coordenação Geral de Vigilância de Arboviroses - CGARB) em sua série histórica, que para tal, realiza análise ano a ano, com a base congelada para cada ano analisado.
+ Para tabular os casos graves (classificação final igual a dengue com complicações, febre hemorrágica da dengue, síndrome do choque da dengue, dengue com sinais de
+ alarme e dengue grave) é necessário considerar também o critério de confirmação (laboratorial e clínico-epidemiológico).
+ A partir de 2020 o estado do Espírito Santo passou a utilizar o sistema e-SUS Vigilância em Saúde. Portanto, para os casos de Arboviroses urbanas do Espírito Santo
+ foram considerados apenas os dados disponibilizados pelo Sinan online (dengue e chikungunya) e Sinan Net (zika).
+ Períodos Disponíveis ou período - Correspondem aos anos de notificação dos casos e semana epidemiológica, em cada período pode apresentar notificações com data de
+ notificação do ano anterior (semana epidemiológica 52 ou 53) e posterior (semana epidemiológica 01).
+ Para cálculo da incidência recomenda-se utilizar locais de residência.
+ Dados de 2014 atualizados em 13/07/2015.
+ Dados de 2015 atualizados em 27/09/2016.
+ Dados de 2016 atualizados em 06/07/2017.
+ Dados de 2017 atualizados em 18/07/2018.
+ Dados de 2018 atualizados em 01/10/2019.
+ Dados de 2019 atualizados em 10/07/2020.
+ Dados de 2020 atualizados em 28/07/2021, corrigidos em 18/11/2025 em relação à variável "Semana epidemiológica da notificação".
+ Dados de 2021 atualizados em 12/07/2022.
+ Dados de 2022 atualizados em 18/07/2023.
+ Dados de 2023 atualizados em 04/06/2024 às 07 horas, incluídos os dados do ES em 29/12/2025.
+ Dados de 2024 atualizados em 28/07/2025 às 18:30 horas, incluídos os dados do ES em 29/12/2025.
+ Dados de 2025 atualizados em 12/01/2026 às 03:00 horas, sujeitos à revisão e incluídos os dados do ES em 13/01/2026.
+ Dados de 2026 atualizados em 12/01/2026 às 03:00 horas, sujeitos à revisão e incluídos os dados do ES em 13/01/2026.
+ * Dados disponibilizados no TABNET em janeiro de 2026.
+ 
