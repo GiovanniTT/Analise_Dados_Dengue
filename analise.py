@@ -24,8 +24,7 @@ df = pd.read_sql(
     engine
 )
 
-for col in ['casos']:
-    df[col] = pd.to_numeric(df[col], errors='coerce')
+df['casos'] = pd.to_numeric(df['casos'], errors='coerce')
 
 df['casos_movel_12'] = (
     df.groupby('estado')['casos']
@@ -60,8 +59,25 @@ model_df = df.dropna(subset=[
     'casos_movel_12'
 ])
 
-"""
-df.to_sql("dengue_dados_enriquecidos", engine, if_exists="replace", index=False)
-corr_df.to_sql("correlacao_casos_clima_estado", engine, if_exists="replace", index=False)
-coef_df.to_sql("modelo_coeficientes", engine, if_exists="replace", index=False)
-"""
+corr_df = (
+    model_df
+    .groupby('estado')[['casos', 'temperatura', 'precipitacao']]
+    .corr()
+    .reset_index()
+)
+
+df.to_sql(
+    "dengue_dados_enriquecidos",
+    engine,
+    if_exists="replace",
+    index=False
+)
+
+corr_df.to_sql(
+    "correlacao_casos_clima_estado",
+    engine,
+    if_exists="replace",
+    index=False
+)
+
+print("\nDados salvos com sucesso no banco!")
