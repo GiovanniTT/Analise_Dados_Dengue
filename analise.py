@@ -6,8 +6,8 @@ from sqlalchemy.engine import URL
 
 url = URL.create(
     drivername="mysql+pymysql",
-    username="giovanni",
-    password="Senha@123",
+    username="*****",
+    password="*****",
     host="localhost",
     port=3306,
     database="dengue_db"
