@@ -545,10 +545,10 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
   <a href="https://github.com/GiovanniTT">
     <img src="https://img.shields.io/badge/GitHub-GiovanniTT-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"/>
   </a>
-  <a href="https://linkedin.com/in/seu-perfil">
+  <a href="https://www.linkedin.com/in/giovanni-micheletti-torres/">
     <img src="https://img.shields.io/badge/LinkedIn-Giovanni_Micheletti-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn"/>
   </a>
-  <a href="mailto:seu-email@example.com">
+  <a href="gi-torres1@hotmail.com">
     <img src="https://img.shields.io/badge/Email-Contact-D14836?style=for-the-badge&logo=gmail&logoColor=white" alt="Email"/>
   </a>
 </p>
