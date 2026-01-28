@@ -128,9 +128,6 @@ Machine Learning:
   - scikit-learn: 1.3+
   - statsmodels: 0.14+
 ```
-
-![Python](https://img.shields.io/badge/Python-Expert-3776AB?style=flat-square&logo=python&logoColor=white)
-
 </td>
 <td align="center" width="33%" valign="top">
 
@@ -150,8 +147,6 @@ Features:
   - Window Functions
   - CTEs & Subqueries
 ```
-
-![SQL](https://img.shields.io/badge/SQL-Advanced-4479A1?style=flat-square&logo=mysql&logoColor=white)
 
 </td>
 <td align="center" width="33%" valign="top">
@@ -173,8 +168,6 @@ Integrations:
   - CSV Import
   - Real-time Updates
 ```
-
-![PowerBI](https://img.shields.io/badge/Power_BI-Pro-F2C811?style=flat-square&logo=powerbi&logoColor=black)
 
 </td>
 </tr>
@@ -279,8 +272,6 @@ print(crescimento.sort_values(ascending=False).head(10))
 ---
 
 ### 🗺️ SQL Analytics - Crescimento Anual por Estado
-
-<summary><b>🔎 Expandir Query SQL Otimizada</b></summary>
 
 ```sql
 
