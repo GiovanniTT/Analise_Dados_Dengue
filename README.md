@@ -5,7 +5,7 @@
 
 <!-- Animated typing effect -->
 <p align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=28&duration=3000&pause=1000&color=2E9EF7&center=true&vCenter=true&random=false&width=800&lines=Transformando+Dados+em+Insights+💡;Data+Science+%7C+Public+Health+%7C+BI;11+Anos+de+Dados+Epidemiológicos+📊" alt="Typing SVG" />
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=28&duration=3000&pause=1000&color=2E9EF7&center=true&vCenter=true&random=false&width=800&lines=Transformando+Dados+em+Insights+💡;11+Anos+de+Dados+Epidemiológicos+📊" alt="Typing SVG" />
 </p>
 
 <!-- Badges animados -->
