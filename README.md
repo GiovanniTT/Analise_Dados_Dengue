@@ -299,171 +299,62 @@ graph LR
     F --> G[📈 Visualizations]
 ```
 
-### 📱 Painéis Planejados
-
-<table>
-<tr>
-<td width="50%" align="center">
-
-#### 🏠 PAINEL 1: Visão Executiva
-<img src="https://img.shields.io/badge/KPIs-5-blue?style=flat-square" alt="KPIs"/>
-<img src="https://img.shields.io/badge/Charts-8-green?style=flat-square" alt="Charts"/>
-
-```yaml
-Features:
-  - 📊 KPIs Principais (Cards)
-  - 📈 Linha do Tempo (2014-2025)
-  - 🎯 Gauge de Crescimento
-  - 🔥 Mapa de Calor Temporal
-  - 📉 Tendência de Mortalidade
-```
-
-</td>
-<td width="50%" align="center">
-
-#### 🗺️ PAINEL 2: Análise Geográfica
-<img src="https://img.shields.io/badge/Map-Interactive-orange?style=flat-square" alt="Map"/>
-<img src="https://img.shields.io/badge/Drill_Down-Yes-green?style=flat-square" alt="Drill Down"/>
-
-```yaml
-Features:
-  - 🗺️ Mapa Choropleth do Brasil
-  - 📍 Densidade por Estado
-  - 🏆 Ranking Top 10
-  - 🎨 Gradiente de Cores
-  - 🔍 Zoom Interativo
-```
-
-</td>
-</tr>
-<tr>
-<td width="50%" align="center">
-
-#### 🌡️ PAINEL 3: Correlação Climática
-<img src="https://img.shields.io/badge/R²-Calculated-success?style=flat-square" alt="R²"/>
-<img src="https://img.shields.io/badge/Scatter-Advanced-blue?style=flat-square" alt="Scatter"/>
-
-```yaml
-Features:
-  - 📊 Scatter Plot Interativo
-  - 📈 Linha de Tendência
-  - 🌡️ Temp vs Casos
-  - 🌧️ Precipitação vs Casos
-  - 📉 Coeficiente de Correlação
-```
-
-</td>
-<td width="50%" align="center">
-
-#### 📈 PAINEL 4: Projeções e Trends
-<img src="https://img.shields.io/badge/Forecasting-AI-purple?style=flat-square" alt="Forecasting"/>
-<img src="https://img.shields.io/badge/ML-Enabled-red?style=flat-square" alt="ML"/>
-
-```yaml
-Features:
-  - 🔮 Previsão ARIMA
-  - 📊 Decomposição Sazonal
-  - 📈 Crescimento YoY
-  - 🎯 Confidence Intervals
-  - ⚠️ Alertas Automáticos
-```
-
-</td>
-</tr>
-</table>
-
 ### 🎨 Preview do Dashboard
 
 <div align="center">
 
 ---
 
-#### 🏠 Página 1: Analise Geral
+#### 🏠 Página 1: Análise de Dengue no Brasil (Visão Geral)
 ![Dashboard Principal](visao_geral.png)
-*Visão consolidada com KPIs principais, evolução temporal e métricas críticas*
+*Visão consolidada da evolução dos casos de dengue no Brasil, com indicadores-chave, distribuição geográfica e crescimento anual.*
 
 <details>
 <summary>📋 <b>Especificações Técnicas</b></summary>
 
 ```yaml
-Componentes:
-  Cards KPI:
-    - Total de Casos (11 anos)
-    - Crescimento Anual (%)
-    - Taxa de Letalidade
-    - Estados Afetados
-    - Tendência (↑↓)
-  
-  Gráficos:
-    - Line Chart: Evolução Temporal
-    - Column Chart: Casos por Ano
-    - Area Chart: Mortes Acumuladas
-    - Gauge: Meta vs Realizado
-  
-  Filtros:
-    - Slicer: Ano (2014-2025)
-    - Slicer: Região
-    - Slicer: Estado
+Principais KPIs:
+  - Total de casos
+  - Total de óbitos
+  - Taxa de letalidade
+  - Média móvel de casos
+  - Variação anual de casos
+
+Principais visuais:
+  - Mapa geográfico: Casos por estado
+  = Gráfico de linhas: Casos × Média móvel (12 meses)
+  = Gráfico de linhas: Crescimento percentual anual de casos
+
+Recursos analíticos:
+  - Média móvel de 12 meses
+  - Comparação ano a ano
+  - Filtros interativos por período e mês
 ```
 
 </details>
 
 ---
 
-#### 📍 Página 2: Análise Geoespacial
+#### 📍 Página 2: Métricas e Evolução Temporal da Dengue
 ![Análise Geográfica](visao_detalhada.png)
-*Mapa interativo com densidade de casos, drill-through por estado e análise regional*
+*Análise temporal, sazonalidade e fatores climáticos associados à incidência de dengue no Brasil, com ranking de estados por casos, óbitos e taxa de letalidade.*
 
 <details>
 <summary>📋 <b>Especificações Técnicas</b></summary>
 
 ```yaml
-Componentes:
-  Mapa Principal:
-    - Tipo: Filled Map (Choropleth)
-    - Cores: Gradiente (Verde → Vermelho)
-    - Tooltips: Casos, Óbitos, Taxa
-    - Zoom: Habilitado
-  
-  Tabelas:
-    - Matrix: Estado × Ano × Casos
-    - Ranking: Top 10 Estados
-    - Sparklines: Tendência Mini
-  
-  Interatividade:
-    - Cross-filtering
-    - Drill-down: Região → Estado → Município
-    - Sync slicers
-```
+Principais visuais:
+  - Gráfico de dispersão: Precipitação × Casos
+  - Gráfico de dispersão: Temperatura × Casos
+  - Gráfico de linhas: Sazonalidade mensal dos casos
+  - Ranking Top 5 estados com mais casos
+  - Ranking Top 5 estados com mais mortes
+  - Tabela de estados com maior taxa de letalidade
 
-</details>
-
----
-
-#### 🌡️ Página 3: Análise de Correlação Climática
-![Correlação Climática](assets/dashboard_clima.png)
-*Scatter plots com linha de tendência, R², e análise estatística de temperatura e precipitação*
-
-<details>
-<summary>📋 <b>Especificações Técnicas</b></summary>
-
-```yaml
-DAX Measures:
-  - Correlação Pearson: 
-      CORREL(Casos, Temperatura)
-  
-  - R² Score:
-      POWER(CORREL(X, Y), 2)
-  
-  - Linha de Tendência:
-      Linear Regression (Power Query)
-
-Componentes:
-  - Scatter Chart: Casos × Temp
-  - Scatter Chart: Casos × Precip
-  - Line Chart: Tendência Temporal
-  - Card: Coef. Correlação
-  - Textbox: Interpretação
+Recursos analíticos:
+  - Filtros por ano e mês
+  - Destaque de padrões sazonais
+  - Correlação visual entre variáveis climáticas e casos
 ```
 
 </details>
