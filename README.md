@@ -379,7 +379,7 @@ Features:
 ---
 
 #### 🏠 Página 1: Analise Geral
-![Dashboard Principal](assets/dashboard_principal.png)
+![Dashboard Principal](visao_geral.png)
 *Visão consolidada com KPIs principais, evolução temporal e métricas críticas*
 
 <details>
@@ -411,7 +411,7 @@ Componentes:
 ---
 
 #### 📍 Página 2: Análise Geoespacial
-![Análise Geográfica](assets/dashboard_geografico.png)
+![Análise Geográfica](visao_detalhada.png)
 *Mapa interativo com densidade de casos, drill-through por estado e análise regional*
 
 <details>
