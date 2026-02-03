@@ -286,8 +286,6 @@ print(crescimento.sort_values(ascending=False).head(10))
 
 <div align="center">
 
-> 🚧 **Em Desenvolvimento Ativo** - Dashboard interativo de última geração em construção
-
 ### 🎯 Visão Geral da Arquitetura BI
 
 ```mermaid
