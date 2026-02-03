@@ -112,7 +112,7 @@ Analise_Dados_Dengue/
 
 <img src="https://github.com/devicons/devicon/blob/master/icons/python/python-original.svg" width="80" height="80"/>
 
-### 🐍 Python Ecosystem
+### 🐍 Python
 **Core Analysis & ETL**
 
 ```yaml
@@ -146,6 +146,9 @@ Features:
   - Optimized Queries
   - Window Functions
   - CTEs & Subqueries
+
+
+
 ```
 
 </td>
@@ -167,6 +170,8 @@ Integrations:
   - SQL Connector
   - CSV Import
   - Real-time Updates
+
+
 ```
 
 </td>
@@ -222,6 +227,12 @@ python scripts/extracao_clima_br.py
 
 # 3. Executar análises
 python scripts/analise.py
+
+# 4. Visualizar Dashboard
+Abra o Power BI Desktop
+Abra o arquivo `powerbi/dashboard_dengue.pbix`
+Atualize as conexões se necessário
+Explore as visualizações interativas!
 ```
 
 ### Exemplos de Uso
@@ -269,56 +280,6 @@ print(crescimento.sort_values(ascending=False).head(10))
 ```
 </details>
 
----
-
-### 🗺️ SQL Analytics - Crescimento Anual por Estado
-
-```sql
-
-CREATE OR REPLACE
-ALGORITHM = UNDEFINED
-VIEW `dengue_db`.`crescimento_anual_estado` AS
-
-SELECT
-    t.estado AS estado,
-    t.ano AS ano,
-
-    t.total_casos
-      - LAG(t.total_casos) OVER (
-            PARTITION BY t.estado
-            ORDER BY t.ano
-        ) AS variacao_casos,
-
-    (
-        (
-            t.total_casos
-            - LAG(t.total_casos) OVER (
-                PARTITION BY t.estado
-                ORDER BY t.ano
-              )
-        )
-        /
-        NULLIF(
-            LAG(t.total_casos) OVER (
-                PARTITION BY t.estado
-                ORDER BY t.ano
-            ),
-            0
-        )
-    ) * 100 AS crescimento_pct
-
-FROM (
-    SELECT
-        estado,
-        ano,
-        SUM(casos) AS total_casos
-    FROM dengue_db.dengue_dados
-    GROUP BY
-        estado,
-        ano
-) t;
-
-```
 ---
 
 ## 📊 Dashboard Power BI
@@ -417,7 +378,7 @@ Features:
 
 ---
 
-#### 🏠 Página 1: Dashboard Executivo
+#### 🏠 Página 1: Analise Geral
 ![Dashboard Principal](assets/dashboard_principal.png)
 *Visão consolidada com KPIs principais, evolução temporal e métricas críticas*
 
