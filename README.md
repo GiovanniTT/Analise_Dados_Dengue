@@ -372,7 +372,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 
 ### Giovanni Micheletti Torres
-**Data Analyst | Data Rngineer | BI Specialist**
+**Data Analyst | Data Engineer | BI Specialist**
 
 <p>
   <i>Transformando dados complexos em insights acionáveis para saúde pública</i>
